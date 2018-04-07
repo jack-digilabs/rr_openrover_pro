@@ -7,7 +7,7 @@ Everything needed to use ROS with OpenRover
 -Ubuntu 16.04 or above  
 
 ## Install 
-git clone https://github.com/RoverRobotics/openrover_ros.git
+git clone https://github.com/RoverRobotics/openrover_ros.git  
 source /devel/setup.bash
 
 ## Running Examples
