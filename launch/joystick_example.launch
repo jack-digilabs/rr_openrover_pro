@@ -1,0 +1,15 @@
+<launch>
+
+      <!-- Avatar Node -->
+      <node pkg="openrover_ros" type="avatar_driver.py" name="avatar_node"/>
+
+      <!-- Xbox 360 Controller Button Mapping -->
+      <node pkg="openrover_ros" type="joystick.py" name="joystick" output="screen" >
+          <param name="max_vel" value="2.6" />
+          <param name="drive_type" value="diff_drive" />
+          <param name="full_throttle" value="0.6" />
+          <param name="adjustable_throttle" value="True" />
+          <param name="increment" value="0.2" />
+      </node>
+
+</launch>

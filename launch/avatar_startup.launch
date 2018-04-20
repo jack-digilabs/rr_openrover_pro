@@ -1,1 +1,6 @@
-sdlfkjajsldfkj
+<launch>
+
+      <!-- Avatar Node -->
+      <node pkg="openrover_ros" type="avatar_driver.py" name="avatar_node"/>
+
+</launch>
