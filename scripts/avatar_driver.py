@@ -232,6 +232,8 @@ def avos_motor_driver_main():
         r.sleep()
     
 if __name__ == '__main__':
+    # pause 1 sec to allow java SDK node to startup
+    time.sleep(1)
     # connect to socket for Avos Java SDK program
     AvosSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host=socket.gethostname()
