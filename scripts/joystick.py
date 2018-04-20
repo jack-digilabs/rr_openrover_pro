@@ -69,7 +69,7 @@ U_PAD_BUTTON = 13
 D_PAD_BUTTON = 14
 
 MAX_VEL = 2.6
-FULL_THROTTLE = 1.0 
+FULL_THROTTLE = 0.8 
 ADJ_THROTTLE = True
 INC = 0.2 
 DEADBAND = 0.2
@@ -136,16 +136,16 @@ def joy_cb(Joy):
     # len==8, 11 for axes,buttons with the xboxdrv
     # len==8, 15 for axes,buttons with the xpad.ko module
     if (len(Joy.axes)==8 and len(Joy.buttons)==11):
-        USE_XPAD=False
-        TURN_JOY=2
+        # UP/DOWN buttons are on axes with xpad.ko
+        USE_XPAD=True
+        TURN_JOY=3
         U_PAD_BUTTON=7
         D_PAD_BUTTON=7
         U_PAD_BUTTON_VALUE=1
         D_PAD_BUTTON_VALUE=-1
     else:
-        # UP/DOWN buttons are on axes with xpad.ko
-        USE_XPAD=True
-        TURN_JOY=3
+        USE_XPAD=False
+        TURN_JOY=2
         U_PAD_BUTTON = 13
         D_PAD_BUTTON = 14
         U_PAD_BUTTON_VALUE=1
@@ -204,14 +204,14 @@ def joy_cb(Joy):
     if ADJ_THROTTLE:
         # Increase/Decrease Max Speed
         if (USE_XPAD):
-            if Joy.buttons[U_PAD_BUTTON] == U_PAD_BUTTON_VALUE:
-                FULL_THROTTLE += INC
-            if Joy.buttons[D_PAD_BUTTON] == D_PAD_BUTTON_VALUE:
-                FULL_THROTTLE -= INC
-        else:
             if int(Joy.axes[U_PAD_BUTTON]) == U_PAD_BUTTON_VALUE:
                 FULL_THROTTLE += INC
             if int(Joy.axes[D_PAD_BUTTON]) == D_PAD_BUTTON_VALUE:
+                FULL_THROTTLE -= INC
+        else:
+            if Joy.buttons[U_PAD_BUTTON] == U_PAD_BUTTON_VALUE:
+                FULL_THROTTLE += INC
+            if Joy.buttons[D_PAD_BUTTON] == D_PAD_BUTTON_VALUE:
                 FULL_THROTTLE -= INC
         
         # If the user tries to decrese full throttle to 0
@@ -237,7 +237,6 @@ def joy_cb(Joy):
         drive_cmd = 0 
         
     # Turn left/right commands
-    #turn_cmd = FULL_THROTTLE * Joy.axes[TURN_JOY] #right joystick
     turn_cmd = FULL_THROTTLE * Joy.axes[TURN_JOY] #right joystick
     if turn_cmd < DEADBAND and -DEADBAND < turn_cmd:
         turn_cmd = 0

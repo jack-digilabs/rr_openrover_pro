@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-# Author: Erik Beall
+# Author: Erik Beall and Nick Fragale
 # Description: This script converts /cmd_vel twist messages into 
 # the appropriate commands to the Avatar Java SDK over sockets
 
 import numpy as np
 import rospy
 from geometry_msgs.msg import Twist, Vector3Stamped
-from std_msgs.msg import String
+from nav_msgs.msg import Odometry
+from std_msgs.msg import String, Int32
 import select
 import socket
 import time
@@ -26,18 +27,38 @@ left_incr=0
 right_incr=0
 enc_pub=None
 status_pub=None
+battery1_pub=None
+battery2_pub=None
 cmd_vel_timeout=0.5
 curr_cmd_stamp=time.time()
+LED_VALUE=0
+cur_drive_cmd=0
+cur_turn_cmd=0
+wheel_diameter = rospy.get_param('default_param', 0.254) # 0.254 meters (10")
+wheel_base = rospy.get_param('default_param', 0.3683) # 0.3683 meters (14.5")
+
+
+def led_cb(cmd):
+    global LED_VALUE
+    value=cmd.data
+    if value>50:
+        value=50
+    if value<0:
+        value=0
+    LED_VALUE=value
 
 def cmd_vel_cb(cmd):
     global AvosSocket, left_setpoint, right_setpoint, left_cv, right_cv, left_incr, right_incr, curr_cmd_stamp
     global timer_clamping_on
+    global cur_drive_cmd, cur_turn_cmd
 
 
     curr_cmd_stamp = time.time()
 
     drive_cmd = int(MOTOR_DRIVE_SCALING*cmd.linear.x)
     turn_cmd = int(MOTOR_DRIVE_SCALING*cmd.angular.z)
+    cur_drive_cmd = cmd.linear.x
+    cur_turn_cmd = cmd.angular.z
 
     # we wish to send the left, right motor velocities from drive_cmd and turn_cmd (each between -1000 and 1000)
     # if abs(drive_cmd)+abs(turn_cmd)>1000, then we will need to adjust accordingly
@@ -84,19 +105,41 @@ def cmd_vel_cb(cmd):
     #right_cv=right_setpoint
 
 def parse_avatar_to_ros(buf):
-    global enc_pub, status_pub
+    global enc_pub, status_pub, battery1_pub, battery2_pub
+    global cur_drive_cmd, cur_turn_cmd
+    global wheel_diameter, wheel_base
     mtype=buf.split(':')[0]
     if mtype=='M':
+        # 1 is Left motor
+        # 2 is right motor
         mvel1=int(buf.split(':')[3].split(',')[0])
         mvel2=int(buf.split(':')[3].split(',')[1])
+        mrpm1=float(buf.split(':')[2].split(',')[0]) 
+        mrpm2=float(buf.split(':')[2].split(',')[1])
         menc1=int(buf.split(':')[1].split(',')[0])
         menc2=int(buf.split(':')[1].split(',')[1])
         cmd_msg = Vector3Stamped()
+        odom_msg = Odometry()
+        odom_diff_msg = Vector3Stamped()
         cmd_msg.header.stamp = rospy.Time.now()
         cmd_msg.header.frame_id = 'base_link'
         cmd_msg.vector.x= menc1
         cmd_msg.vector.y= menc2
+        # Equations of motion for two wheeled robot
+        # https://robotics.stackexchange.com/questions/106/what-is-a-suitable-model-for-two-wheeled-robots
+        wheel_circumferance = wheel_diameter * 3.14159
+        vel1 = mrpm1 / 60 * wheel_circumferance
+        vel2 = mrpm2 / 60 * wheel_circumferance
+        friction_factor = 0.95
+        forward_velocity = 0.5 * (vel1 + vel2)
+        turning_velocity = (1 / wheel_base) * (vel2 - vel1) * friction_factor
+        odom_msg.twist.twist.linear.x = forward_velocity
+        odom_msg.twist.twist.angular.z = turning_velocity 
+        odom_diff_msg.vector.x = cur_drive_cmd - forward_velocity
+        odom_diff_msg.vector.z = cur_turn_cmd - turning_velocity
         enc_pub.publish(cmd_msg)
+        odom_pub.publish(odom_msg)
+        odom_diff_pub.publish(odom_diff_msg)
     elif mtype=='S':
         smtemp1=int(buf.split(':')[1].split(',')[0])
         smtemp2=int(buf.split(':')[1].split(',')[1])
@@ -106,9 +149,15 @@ def parse_avatar_to_ros(buf):
         cmd_msg = String()
         cmd_msg.data = "BatteryCharge="+str(sbat1)+','+str(sbat2)+":MotorTemperature="+str(smtemp1)+','+str(smtemp2)+":Charge="+str(scharge)
         status_pub.publish(cmd_msg)
+        cmd1_msg = Int32()
+        cmd1_msg.data = sbat1
+        battery1_pub.publish(cmd1_msg)
+        cmd2_msg = Int32()
+        cmd2_msg.data = sbat2
+        battery2_pub.publish(cmd2_msg)
 
 def listen_to_avatar_cb(event):
-    global AvosSocket, left_cv, right_cv
+    global AvosSocket, left_cv, right_cv, LED_VALUE
     # short timeout, less than half the fastest cycle time (100/2 = 50 milliseconds)
     timeout=50
     ready_to_read, ready_to_write, in_error = select.select([AvosSocket],[AvosSocket],[],timeout)
@@ -120,7 +169,8 @@ def listen_to_avatar_cb(event):
             for bufline in buf.split('\n'):
                 parse_avatar_to_ros(bufline)
     if len(ready_to_write) != 0:
-    	avos_cmd='SET='+str(left_cv)+"_"+str(right_cv)+'_'+str(0)+'\n'
+    	avos_cmd='SET='+str(left_cv)+"_"+str(right_cv)+'_'+str(LED_VALUE)+'\n'
+        #print('Sending '+avos_cmd)
     	AvosSocket.sendall(avos_cmd)
 
 def send_motor_cmds_cb(event):
@@ -156,7 +206,6 @@ def send_motor_cmds_cb(event):
     right_cv=right_setpoint
     left_cv=int(left_cv)
     right_cv=int(right_cv)
-    TOGGLE_LED=0
 
     # send move commands down sockets interface
     '''
@@ -204,8 +253,13 @@ if __name__ == '__main__':
     rospy.init_node('avos_motor_driver_node', anonymous=True)
     r = rospy.Rate(20) # 10hz
     # publish the commands actually sent to the motors - in lieu of actual motor encoders
-    enc_pub = rospy.Publisher('/cmd_vel_enc', Vector3Stamped, queue_size=3)
-    status_pub = rospy.Publisher('/avatar_status', String, queue_size=3, latch=True)
+    enc_pub = rospy.Publisher('/avatar/enc', Vector3Stamped, queue_size=10)
+    odom_pub = rospy.Publisher('/avatar/odom', Odometry, queue_size=10)
+    odom_diff_pub = rospy.Publisher('/avatar/odom_diff', Vector3Stamped, queue_size=10)
+    status_pub = rospy.Publisher('/avatar/status', String, queue_size=1, latch=True)
+    battery1_pub = rospy.Publisher('/avatar/battery/cell1/soc', Int32, queue_size=1, latch=True)
+    battery2_pub = rospy.Publisher('/avatar/battery/cell2/soc', Int32, queue_size=1, latch=True)
+    led_sub = rospy.Subscriber("/led", Int32, led_cb, queue_size=10)
 
     try:
         avos_motor_driver_main()
