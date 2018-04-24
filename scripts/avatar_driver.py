@@ -6,6 +6,7 @@
 
 import numpy as np
 import rospy
+import os
 from geometry_msgs.msg import Twist, Vector3Stamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String, Int32
@@ -160,9 +161,17 @@ def listen_to_avatar_cb(event):
     global AvosSocket, left_cv, right_cv, LED_VALUE
     # short timeout, less than half the fastest cycle time (100/2 = 50 milliseconds)
     timeout=50
-    ready_to_read, ready_to_write, in_error = select.select([AvosSocket],[AvosSocket],[],timeout)
+    try:
+        ready_to_read, ready_to_write, in_error = select.select([AvosSocket],[AvosSocket],[],timeout)
+    except:
+        print('Socket error in select() in avatar_driver.py, exiting')
+        os._exit(1)
     if len(ready_to_read) != 0:
-        buf = AvosSocket.recv(1024)
+        try:
+            buf = AvosSocket.recv(1024)
+        except:
+            print('Socket error in recv() in avatar_driver.py, exiting')
+            os._exit(1)
         if len(buf) != 0:
             # print, parse, send to ROS topics
             # parse into lines (if any)
@@ -171,7 +180,11 @@ def listen_to_avatar_cb(event):
     if len(ready_to_write) != 0:
     	avos_cmd='SET='+str(left_cv)+"_"+str(right_cv)+'_'+str(LED_VALUE)+'\n'
         #print('Sending '+avos_cmd)
-    	AvosSocket.sendall(avos_cmd)
+        try:
+    	    AvosSocket.sendall(avos_cmd)
+        except:
+            print('Socket error in sendall() in avatar_driver.py, exiting')
+            os._exit(1)
 
 def send_motor_cmds_cb(event):
     global AvosSocket, left_setpoint, right_setpoint, left_cv, right_cv, left_incr, right_incr, curr_cmd_stamp, cmd_vel_timeout
