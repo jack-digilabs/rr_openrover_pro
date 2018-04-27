@@ -156,6 +156,12 @@ def parse_avatar_to_ros(buf):
         cmd2_msg = Int32()
         cmd2_msg.data = sbat2
         battery2_pub.publish(cmd2_msg)
+        temp1_msg = Int32()
+        temp1_msg.data = smtemp1
+        motor1temp_pub.publish(temp1_msg)
+        temp2_msg = Int32()
+        temp2_msg.data = smtemp2
+        motor2temp_pub.publish(temp2_msg)
 
 def listen_to_avatar_cb(event):
     global AvosSocket, left_cv, right_cv, LED_VALUE
@@ -274,6 +280,8 @@ if __name__ == '__main__':
     status_pub = rospy.Publisher('/avatar/status', String, queue_size=1, latch=True)
     battery1_pub = rospy.Publisher('/avatar/battery/cell1/soc', Int32, queue_size=1, latch=True)
     battery2_pub = rospy.Publisher('/avatar/battery/cell2/soc', Int32, queue_size=1, latch=True)
+    motor1temp_pub = rospy.Publisher('/avatar/motor1/temp', Int32, queue_size=1, latch=True)
+    motor2temp_pub = rospy.Publisher('/avatar/motor2/temp', Int32, queue_size=1, latch=True)
     led_sub = rospy.Subscriber("/led", Int32, led_cb, queue_size=10)
 
     try:
