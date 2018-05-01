@@ -7,11 +7,11 @@ Everything needed to use ROS with OpenRover
 -Ubuntu 16.04 or above  
 
 ## Install 
-cd ~/catkin_ws/src
-git clone https://github.com/RoverRobotics/openrover_ros.git
-cd ~/catkin_ws
+cd ~/catkin_ws/src  
+git clone https://github.com/RoverRobotics/openrover_ros.git  
+cd ~/catkin_ws  
 catkin_make  
-source /devel/setup.bash
+source /devel/setup.bash  
 
 ## Running Examples
 roslaunch open_rover_ros avatar_startup.launch
