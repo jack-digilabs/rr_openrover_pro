@@ -138,14 +138,14 @@ def joy_cb(Joy):
     if (len(Joy.axes)==8 and len(Joy.buttons)==11):
         # UP/DOWN buttons are on axes with xpad.ko
         USE_XPAD=True
-        TURN_JOY=3
+        TURN_JOY=2
         U_PAD_BUTTON=7
         D_PAD_BUTTON=7
         U_PAD_BUTTON_VALUE=1
         D_PAD_BUTTON_VALUE=-1
     else:
         USE_XPAD=False
-        TURN_JOY=2
+        TURN_JOY=3
         U_PAD_BUTTON = 13
         D_PAD_BUTTON = 14
         U_PAD_BUTTON_VALUE=1

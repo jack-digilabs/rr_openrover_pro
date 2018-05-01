@@ -30,6 +30,7 @@ enc_pub=None
 status_pub=None
 battery1_pub=None
 battery2_pub=None
+charging_pub=None
 cmd_vel_timeout=0.5
 curr_cmd_stamp=time.time()
 LED_VALUE=0
@@ -38,6 +39,12 @@ cur_turn_cmd=0
 wheel_diameter = rospy.get_param('default_param', 0.254) # 0.254 meters (10")
 wheel_base = rospy.get_param('default_param', 0.3683) # 0.3683 meters (14.5")
 
+bat_array=[]
+override=-1
+def override_cb(msg):
+    global override
+    # override == -1, no override, ==1, set to charging, ==0, set to not charging
+    override=msg.data
 
 def led_cb(cmd):
     global LED_VALUE
@@ -109,6 +116,7 @@ def parse_avatar_to_ros(buf):
     global enc_pub, status_pub, battery1_pub, battery2_pub
     global cur_drive_cmd, cur_turn_cmd
     global wheel_diameter, wheel_base
+    global charging_pub, bat_array, override
     mtype=buf.split(':')[0]
     if mtype=='M':
         # 1 is Left motor
@@ -162,6 +170,37 @@ def parse_avatar_to_ros(buf):
         temp2_msg = Int32()
         temp2_msg.data = smtemp2
         motor2temp_pub.publish(temp2_msg)
+        # do our own charge calculation
+        charge_level=0.5*float(sbat1+sbat2)
+        # grow bat_array as we get callbacks over time, we only need 2 minutes of data to infer charging state
+        bat_array.append(charge_level)
+        cmd=Int32()
+        # If one cell is above 99 and other is at 99 or higher, we're probably charging
+        if charge_level>99.0:
+            cmd.data=1
+        elif (len(bat_array)<4):
+            # not ready to tell if we're charging or not yet
+            cmd.data=-1
+        else:
+            # are we increasing/staying same (1) or decreasing (0) over last two minutes
+            if (np.mean(bat_array[-2:])-np.mean(bat_array[-4:-2]))>=0:
+                cmd.data=1
+            elif (np.mean(bat_array[-2:])-np.mean(bat_array[-4:-2]))<0:
+                cmd.data=0
+            else:
+                # can't tell
+                #cmd.data=-1
+                # or do not send anything
+                cmd.data = None
+        # done with charging logic, now pull in override logic (if set)
+        if (override==0):
+            cmd.data=0
+        elif (override==1):
+            cmd.data=1
+        if (cmd.data is not None):
+            charging_pub.publish(cmd)
+        # limit to last 4 measurements
+        bat_array=bat_array[-6:]
 
 def listen_to_avatar_cb(event):
     global AvosSocket, left_cv, right_cv, LED_VALUE
@@ -240,6 +279,7 @@ def avos_motor_driver_main():
 
         # Subscribe to the cmd_vel topic - this takes in motor commands and saves them
         sub_cmds = rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
+        sub_override = rospy.Subscriber("/avatar/charging_override", Int32, override_cb)
 
         # Motor commands timer - here we take the saved motor commands, smooth them every 200 msec and send to the motor
         rospy.Timer(rospy.Duration(0.1), send_motor_cmds_cb)
@@ -283,6 +323,13 @@ if __name__ == '__main__':
     motor1temp_pub = rospy.Publisher('/avatar/motor1/temp', Int32, queue_size=1, latch=True)
     motor2temp_pub = rospy.Publisher('/avatar/motor2/temp', Int32, queue_size=1, latch=True)
     led_sub = rospy.Subscriber("/led", Int32, led_cb, queue_size=10)
+
+    charging_pub = rospy.Publisher('/avatar/charging', Int32, queue_size=1, latch=True)
+    cmd=Int32()
+    cmd.data=-1
+    # on startup, assume we're charging
+    cmd.data=1
+    charging_pub.publish(cmd)
 
     try:
         avos_motor_driver_main()
