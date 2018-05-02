@@ -2,6 +2,10 @@
 
       <include file="$(find openrover_ros)/launch/avatar_startup.launch" />
 
+      <node pkg="joy" type="joy_node" name="xbox_node">
+          <remap from="/joy" to="/joystick" />
+      </node>
+
       <!-- Xbox 360 Controller Button Mapping -->
       <node pkg="openrover_ros" type="joystick.py" name="joystick" output="screen" >
           <param name="max_vel" value="2.6" />
