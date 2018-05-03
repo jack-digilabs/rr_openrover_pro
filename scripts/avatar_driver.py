@@ -171,10 +171,19 @@ def parse_avatar_to_ros(buf):
         temp2_msg.data = smtemp2
         motor2temp_pub.publish(temp2_msg)
         # do our own charge calculation
-        charge_level=0.5*float(sbat1+sbat2)
+        if (sbat1>0 and sbat2>0):
+            charge_level=0.5*float(sbat1+sbat2)
+        elif (sbat1>0):
+            charge_level=float(sbat1)
+        elif (sbat2>0):
+            charge_level=float(sbat2)
+        else:
+            # reset bat_array
+            bat_array=[]
         # grow bat_array as we get callbacks over time, we only need 2 minutes of data to infer charging state
         bat_array.append(charge_level)
         cmd=Int32()
+        print(bat_array)
         # If one cell is above 99 and other is at 99 or higher, we're probably charging
         if charge_level>99.0:
             cmd.data=1
@@ -183,7 +192,8 @@ def parse_avatar_to_ros(buf):
             cmd.data=-1
         else:
             # are we increasing/staying same (1) or decreasing (0) over last two minutes
-            if (np.mean(bat_array[-2:])-np.mean(bat_array[-4:-2]))>=0:
+            # do not use constant level to indicate charging, not meaningful unless the battery is older and drains quickly enough
+            if (np.mean(bat_array[-2:])-np.mean(bat_array[-4:-2]))>0:
                 cmd.data=1
             elif (np.mean(bat_array[-2:])-np.mean(bat_array[-4:-2]))<0:
                 cmd.data=0
