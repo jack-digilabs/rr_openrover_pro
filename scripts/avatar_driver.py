@@ -183,7 +183,6 @@ def parse_avatar_to_ros(buf):
         # grow bat_array as we get callbacks over time, we only need 2 minutes of data to infer charging state
         bat_array.append(charge_level)
         cmd=Int32()
-        print(bat_array)
         # If one cell is above 99 and other is at 99 or higher, we're probably charging
         if charge_level>99.0:
             cmd.data=1
