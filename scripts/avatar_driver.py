@@ -170,6 +170,11 @@ def parse_avatar_to_ros(buf):
         temp2_msg = Int32()
         temp2_msg.data = smtemp2
         motor2temp_pub.publish(temp2_msg)
+        with open('/sys/class/thermal/thermal_zone0/temp') as fp:
+            ptemp=int(fp.readline().split('\n')[0])
+        ptemp_msg = Int32()
+        ptemp_msg.data = ptemp
+        processortemp_pub.publish(ptemp_msg)
         # do our own charge calculation
         if (sbat1>0 and sbat2>0):
             charge_level=0.5*float(sbat1+sbat2)
@@ -332,6 +337,7 @@ if __name__ == '__main__':
     battery2_pub = rospy.Publisher('/avatar/battery/cell2/soc', Int32, queue_size=1, latch=True)
     motor1temp_pub = rospy.Publisher('/avatar/motor1/temp', Int32, queue_size=1, latch=True)
     motor2temp_pub = rospy.Publisher('/avatar/motor2/temp', Int32, queue_size=1, latch=True)
+    processortemp_pub = rospy.Publisher('/processor/temp', Int32, queue_size=1, latch=True)
     led_sub = rospy.Subscriber("/led", Int32, led_cb, queue_size=10)
 
     charging_pub = rospy.Publisher('/avatar/charging', Int32, queue_size=1, latch=True)
