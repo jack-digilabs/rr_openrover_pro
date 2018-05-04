@@ -24,6 +24,10 @@ if [ ! -f $progname.class ] ; then
     #exit -1
 fi
 
-echo "Starting SDK"
-java $progname > /tmp/avos_ros2sdk_iface.txt 2>&1 
+ret=`ps -Alf | grep $progname | grep -v grep`
+ret=$?
+if [ $ret -eq 1 ] ; then
+    echo "Starting SDK"
+    java $progname > /tmp/avos_ros2sdk_iface.txt 2>&1 
+fi
 

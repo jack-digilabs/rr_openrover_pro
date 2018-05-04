@@ -2,11 +2,12 @@
 
 # Author: Nick Fragale
 # Description: This script converts Joystick commands into Joint Velocity commands
-# 
-# EBB modified for emergency stop button (button A), prevents further joystick commands and cancels any existing move_base command
-# sends zeros to cmd_vel while in ESTOP state, can be toggled by pressing A button after debounce time (2 seconds)
-# also checks if joystick lost comms while we were moving
-# ramp-up for recent history of motion
+# Four buttons: emergency stop button (button B/red), prevents further joystick 
+# commands and cancels any existing move_base command
+# sends zeros to cmd_vel while in ESTOP state, 
+# can be toggled by pressing A button (green) after debounce time
+# Monitors X and Y buttons and toggles their state (False on startup) publishes 
+# a latched Bool() for X, Y and B buttons as /joystick/<x_, y_ and e_stop>_button
 
 # Xbox controller mapping:
 #   axes: [l-stick horz,l-stick vert, l-trigger, r-stick horz, r-stick vert, r-trigger]
@@ -14,17 +15,20 @@
 
 import numpy as np
 import rospy
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, String
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
 from actionlib_msgs.msg import GoalID
 import os
 import time
+from std_msgs.msg import Bool
 
 cmd = Twist()
 last_estop_button=time.time()
-last_way_button=time.time()
+last_x_button=time.time()
+last_y_button=time.time()
 last_joycb_device_check=time.time()
+button_msg = String()
 
 L_STICK_H_AXES = 0
 L_STICK_V_AXES = 1
@@ -33,24 +37,11 @@ R_STICK_H_AXES = 3
 R_STICK_V_AXES = 4
 R_TRIG_AXES = 5
 
-E_STOP=0
-
 USE_XPAD=False
+# difference between xboxdrv USB driver and xpad.ko kernel module
 # xboxdrv has only 11 indices
 # and the U/D_PAD_BUTTON is the 7th axis
-'''
 # xpad module uses 2, xboxdrv uses 3
-TURN_JOY=3
-    U_PAD_BUTTON=7
-    D_PAD_BUTTON=7
-    U_PAD_BUTTON_VALUE=1
-    D_PAD_BUTTON_VALUE=-1
-    U_PAD_BUTTON = 13
-    D_PAD_BUTTON = 14
-    U_PAD_BUTTON_VALUE=1
-    D_PAD_BUTTON_VALUE=1
-TURN_JOY=2
-'''
 
 DRIVE_JOY=1
 A_BUTTON = 0
@@ -82,8 +73,18 @@ prev_trn = 0
 PREV_CMD_TIME = 0
 PREV_SEQ_NUM = 0
 
+y_button_msg = Bool()
+y_button_msg.data=False
+x_button_msg = Bool()
+x_button_msg.data=False
+e_stop_msg = Bool()
+e_stop_msg.data=False
+
 # cmd_vel publisher  
 pub = rospy.Publisher('/cmd_vel', Twist, queue_size=3)
+e_stop_pub = rospy.Publisher('/joystick/e_stop', Bool, queue_size=1, latch=True)
+x_button_pub = rospy.Publisher('/joystick/x_button', Bool, queue_size=1, latch=True)
+y_button_pub = rospy.Publisher('/joystick/y_button', Bool, queue_size=1, latch=True)
 pub_delay = rospy.Publisher('/joystick/delay', Float32, queue_size=3)
 pub_cancel_move_base = rospy.Publisher('/move_base/cancel', GoalID, queue_size=10)
 
@@ -107,8 +108,6 @@ def limit_acc(fwd,trn):
     return fwd, trn
 
 
-
-
 def joy_cb(Joy):
     global ADJ_THROTTLE
     global FULL_THROTTLE
@@ -117,12 +116,13 @@ def joy_cb(Joy):
     global PREV_CMD_TIME
     global PREV_SEQ_NUM
 
-    global E_STOP
     global cmd
     global pub_cancel_move_base
     global last_estop_button
-    global last_way_button
+    global last_x_button
+    global last_y_button
     global last_joycb_device_check
+    global e_stop_pub, e_stop_msg, x_button_pub, x_button_msg, y_button_pub, y_button_msg
     
 
     cmd_time = float(Joy.header.stamp.secs) + (float(Joy.header.stamp.nsecs)/1000000000)
@@ -151,50 +151,60 @@ def joy_cb(Joy):
         U_PAD_BUTTON_VALUE=1
         D_PAD_BUTTON_VALUE=1
 
-    #Reject old TCP commands 
-    '''
-    if (signal_delay > 1.0 and Joy.header.seq == PREV_SEQ_NUM):
-        rospy.logwarn('Rejected old TCP /joystick command: ' + str(signal_delay))
-        return
-    '''
-    # the seq num auto-increments regardless of joystick being connected
-    #print len(Joy.axes)
-    #print len(Joy.buttons)
-    #print Joy
-    #return
-
     #Record timestamp and seq for use in next loop
     PREV_CMD_TIME = cmd_time
     PREV_SEQ_NUM = Joy.header.seq
 
-    # check for e-stop button
+    # check for e-stop button (red/B)
+    if Joy.buttons[B_BUTTON] == 1:
+        # debounce 1 second
+        if (time.time()-last_estop_button > 1.0):
+            last_estop_button=time.time()
+            # go into e-stop mode (whether we're already in it or not
+            e_stop_msg.data=True
+            e_stop_pub.publish(e_stop_msg)
+            cmd.linear.x = 0
+            cmd.angular.z = 0
+            rospy.loginfo('User indicated E_STOP. Canceling any move_base commands, going to E_STOP state.')
+            pub.publish(cmd)
+            # cancel any existing move_base command
+            nogoal = GoalID()
+            pub_cancel_move_base.publish(nogoal)
+            return
+    # check for remove-e-stop button (green/A)
     if Joy.buttons[A_BUTTON] == 1:
-        # debounce 2 seconds
-        if (time.time()-last_estop_button > 2.0):
+        # debounce 1 second
+        if (time.time()-last_estop_button > 1.0):
             last_estop_button=time.time()
             # toggle e-stop mode
-            if (E_STOP==0):
-                E_STOP=1
-                cmd.linear.x = 0
-                cmd.angular.z = 0
-                rospy.loginfo('User indicated E_STOP. Canceling any move_base commands, going to E_STOP state.')
-                pub.publish(cmd)
-                # cancel any existing move_base command
-                nogoal = GoalID()
-                pub_cancel_move_base.publish(nogoal)
-            else:
+            if (e_stop_msg.data==1):
+                e_stop_msg.data=False
+                e_stop_pub.publish(e_stop_msg)
                 rospy.loginfo('User indicated leaving E_STOP. Going back to regular mode.')
-                E_STOP=0
-            return
-    # check for save_waypoint button
-    if Joy.buttons[B_BUTTON] == 1:
-        if (time.time()-last_way_button > 5.0):
-            last_way_button=time.time()
-            rospy.loginfo('User saving a waypoint')
-            os.system('/opt/ros/kinetic/bin/rostopic echo /odom/ekf/enc_imu_gps/pose/pose -n 1 >> /tmp/waypoints.txt')
+
+    # check for other two user-defined buttons. We only debounce them and monitor on/off status on a latched pub
+    if Joy.buttons[X_BUTTON] == 1:
+        if (time.time()-last_x_button > 2.0):
+            last_x_button=time.time()
+            rospy.loginfo('User button X')
+            # toggle button
+            if (x_button_msg.data):
+                x_button_msg.data = False
+            else:
+                x_button_msg.data = True
+            x_button_pub.publish(x_button_msg)
+    if Joy.buttons[Y_BUTTON] == 1:
+        if (time.time()-last_y_button > 2.0):
+            last_y_button=time.time()
+            rospy.loginfo('User button Y')
+            if (y_button_msg.data):
+                y_button_msg.data = False
+            else:
+                y_button_msg.data = True
+            y_button_pub.publish(y_button_msg)
 
     # stay in E_STOP mode until the button is pressed again
-    if (E_STOP==1):
+    if (e_stop_msg.data):
         # keep sending zeros
         cmd.linear.x = 0
         cmd.angular.z = 0
@@ -259,6 +269,10 @@ def joystick_main():
     # Initialize driver node
     rospy.init_node('joystick_node', anonymous=True)
     r = rospy.Rate(10) # 10hz
+    # publish the latched button initializations
+    e_stop_pub.publish(e_stop_msg)
+    x_button_pub.publish(x_button_msg)
+    y_button_pub.publish(y_button_msg)
 
     while not rospy.is_shutdown():
         # Subscribe to the joystick topic

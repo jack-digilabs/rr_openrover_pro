@@ -180,6 +180,7 @@ def parse_avatar_to_ros(buf):
         else:
             # reset bat_array
             bat_array=[]
+            return
         # grow bat_array as we get callbacks over time, we only need 2 minutes of data to infer charging state
         bat_array.append(charge_level)
         cmd=Int32()
