@@ -155,8 +155,10 @@ def parse_avatar_to_ros(buf):
         scharge=int(buf.split(':')[3])
         sbat1=int(buf.split(':')[2].split(',')[0])
         sbat2=int(buf.split(':')[2].split(',')[1])
+        with open('/sys/class/thermal/thermal_zone0/temp') as fp:
+            ptemp=int(fp.readline().split('\n')[0])
         cmd_msg = String()
-        cmd_msg.data = "BatteryCharge="+str(sbat1)+','+str(sbat2)+":MotorTemperature="+str(smtemp1)+','+str(smtemp2)+":Charge="+str(scharge)
+        cmd_msg.data = "BatteryCharge="+str(sbat1)+','+str(sbat2)+":MotorTemperature="+str(smtemp1)+','+str(smtemp2)+":Charge="+str(scharge)+":PayloadTemperature="+str(ptemp/1000.0)
         status_pub.publish(cmd_msg)
         cmd1_msg = Int32()
         cmd1_msg.data = sbat1
@@ -170,8 +172,6 @@ def parse_avatar_to_ros(buf):
         temp2_msg = Int32()
         temp2_msg.data = smtemp2
         motor2temp_pub.publish(temp2_msg)
-        with open('/sys/class/thermal/thermal_zone0/temp') as fp:
-            ptemp=int(fp.readline().split('\n')[0])
         ptemp_msg = Int32()
         ptemp_msg.data = ptemp
         processortemp_pub.publish(ptemp_msg)
