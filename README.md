@@ -1,5 +1,5 @@
-# openrover_ros
-Provides a way to control an OpenRover robot using ROS
+# rr_openrover_java
+Provides a way to control an OpenRover robot using ROS and the OpenRover JavaSDK
 
 ## Prerequisites
 -OpenRover JavaSDK 2.0.02 or above  
@@ -8,14 +8,14 @@ Provides a way to control an OpenRover robot using ROS
 
 ## Install 
 cd ~/catkin_ws/src  
-git clone https://github.com/RoverRobotics/openrover_ros.git  
+git clone https://github.com/RoverRobotics/rr_openrover_java.git  
 cd ~/catkin_ws  
 catkin_make  
 source /devel/setup.bash  
 
 ## Running Examples
-roslaunch open_rover_ros avatar_startup.launch  
-roslaunch open_rover_ros joystick_example.launch  
+roslaunch rr_openrover_java avatar_startup.launch  
+roslaunch rr_openrover_java joystick_example.launch  
 
 ## Published Topics:
 
