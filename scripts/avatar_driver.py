@@ -338,7 +338,7 @@ if __name__ == '__main__':
     motor1temp_pub = rospy.Publisher('/avatar/motor1/temp', Int32, queue_size=1, latch=True)
     motor2temp_pub = rospy.Publisher('/avatar/motor2/temp', Int32, queue_size=1, latch=True)
     processortemp_pub = rospy.Publisher('/processor/temp', Int32, queue_size=1, latch=True)
-    led_sub = rospy.Subscriber("/led", Int32, led_cb, queue_size=10)
+    led_sub = rospy.Subscriber("/avatar/led", Int32, led_cb, queue_size=10)
 
     charging_pub = rospy.Publisher('/avatar/charging', Int32, queue_size=1, latch=True)
     cmd=Int32()
