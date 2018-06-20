@@ -4,7 +4,7 @@
   <version>1.0.0</version>
   <description>The rr_openrover_java package</description>
 
-  <maintainer email="nick@roverrobotics">nick</maintainer>
+  <maintainer email="nick@roverrobotics.com">nick</maintainer>
   <license>BSD</license>
   <url type="website">http://wiki.ros.org/rr_openrover_java</url>
 
