@@ -1,4 +1,4 @@
-# rr_openrover_java
+# rr_openrover_pro
 Provides a way to control an OpenRover robot using ROS and the OpenRover JavaSDK
 
 ## Prerequisites
@@ -8,42 +8,42 @@ Provides a way to control an OpenRover robot using ROS and the OpenRover JavaSDK
 
 ## Install 
 cd ~/catkin_ws/src  
-git clone https://github.com/RoverRobotics/rr_openrover_java.git  
+git clone https://github.com/RoverRobotics/rr_openrover_pro.git  
 cd ~/catkin_ws  
 catkin_make  
 source /devel/setup.bash  
 
 ## Running Examples
-roslaunch rr_openrover_java avatar_startup.launch  
-roslaunch rr_openrover_java joystick_example.launch  
+roslaunch rr_openrover_pro openrover_startup.launch  
+roslaunch rr_openrover_pro joystick_example.launch  
 
 ## Published Topics:
 
-* `/avatar/battery/cell1/soc`:
+* `/openrover/battery/cell1/soc`:
   Publishes `std_msgs/Int32`, battery cell 1 state of charge as a percentage [1 to 100]
 
-* `/avatar/battery/cell2/soc`:
+* `/openrover/battery/cell2/soc`:
   Publishes `std_msgs/Int32`, battery cell 2 state of charge as a percentage [1 to 100]
 
-* `/avatar/charging`:
+* `/openrover/charging`:
   Publishes `std_msgs/Int32`, not very robust yet yet. This topic publishes charge state of the robot 
 
-* `/avatar/enc`:
+* `/openrover/enc`:
   Publishes `geometry_msgs/Vector3Stamped` encoder feedback in [counts] 
 
-* `/avatar/motor1/temp`:
+* `/openrover/motor1/temp`:
   Publishes `std_msgs/Int32` motor 1 temp in [C]
 
-* `/avatar/motor2/temp`:
+* `/openrover/motor2/temp`:
   Publishes `std_msgs/Int32` motor 2 temp in [C]
 
-* `/avatar/odom`:
+* `/openrover/odom`:
   Publishes `nav_msgs/Odometry` encoder feedback in [m/s] and [rad/s], usefull as odometry source for kalman filter. Not accurate yet.
 
-* `/avatar/odom_diff`:
+* `/openrover/odom_diff`:
   Publishes `geometry_msgs/Vector3Stamped` provides the difference in commanded and measured odometry
 
-* `/avatar/status`:
+* `/openrover/status`:
   Publishes `std_msgs/String` un-parsed string used for publishing the other topics
 
 
@@ -55,8 +55,8 @@ roslaunch rr_openrover_java joystick_example.launch
 * `/cmd_vel`:
   Subscribes to `geometry_msgs/Twist` used to command the wheels. linear.x is used to move forward and back, angular.z is used to turn left and right. 
 
-* `/avatar/charging_override`:
-  Subscribes to `std_msgs/Int32` since /avatar/charging is not robust this provides a way to manually change the /avatar/charging topic. This is useful if the topic is used in a state machine
+* `/openrover/charging_override`:
+  Subscribes to `std_msgs/Int32` since /openrover/charging is not robust this provides a way to manually change the /openrover/charging topic. This is useful if the topic is used in a state machine
 
 ## Parameters:
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-homedir=`rospack find rr_openrover_java`
+homedir=`rospack find rr_openrover_pro`
 ret=$?
 if [ $ret -ne 0 ] ; then
-   echo "rr_openrover_java not in path, make sure it is in the ROS_PACKAGE_PATH"
+   echo "rr_openrover_pro not in path, make sure it is in the ROS_PACKAGE_PATH"
    exit -1
 fi
 
