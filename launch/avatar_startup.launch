@@ -1,9 +1,0 @@
-<launch>
-
-      <!-- Avatar Node -->
-      <node pkg="rr_openrover_java" type="avatar_driver.py" name="avatar_node" respawn="true"/>
-
-      <!-- Runs Java SDK needed to comminucate with OpenRover -->
-      <node pkg="rr_openrover_java" type="avatar_comms.sh" name="avatar_javasdk_node" respawn="true"/>
-
-</launch>

@@ -16,7 +16,7 @@ import time
 import math
 
 AvosSocket=None
-# conversion from old joystick/old robot motor (max speed 2.6) to avatar (max speed 1000)
+# conversion from old joystick/old robot motor (max speed 2.6) to openrover (max speed 1000)
 MOTOR_DRIVE_SCALING=384
 last_acc=0.0
 timer_clamping_on=False
@@ -112,7 +112,7 @@ def cmd_vel_cb(cmd):
     #left_cv=left_setpoint
     #right_cv=right_setpoint
 
-def parse_avatar_to_ros(buf):
+def parse_openrover_to_ros(buf):
     global enc_pub, status_pub, battery1_pub, battery2_pub
     global cur_drive_cmd, cur_turn_cmd
     global wheel_diameter, wheel_base
@@ -217,33 +217,33 @@ def parse_avatar_to_ros(buf):
         # limit to last 4 measurements
         bat_array=bat_array[-6:]
 
-def listen_to_avatar_cb(event):
+def listen_to_openrover_cb(event):
     global AvosSocket, left_cv, right_cv, LED_VALUE
     # short timeout, less than half the fastest cycle time (100/2 = 50 milliseconds)
     timeout=50
     try:
         ready_to_read, ready_to_write, in_error = select.select([AvosSocket],[AvosSocket],[],timeout)
     except:
-        print('Socket error in select() in avatar_driver.py, exiting')
+        print('Socket error in select() in openrover_driver.py, exiting')
         os._exit(1)
     if len(ready_to_read) != 0:
         try:
             buf = AvosSocket.recv(1024)
         except:
-            print('Socket error in recv() in avatar_driver.py, exiting')
+            print('Socket error in recv() in openrover_driver.py, exiting')
             os._exit(1)
         if len(buf) != 0:
             # print, parse, send to ROS topics
             # parse into lines (if any)
             for bufline in buf.split('\n'):
-                parse_avatar_to_ros(bufline)
+                parse_openrover_to_ros(bufline)
     if len(ready_to_write) != 0:
     	avos_cmd='SET='+str(left_cv)+"_"+str(right_cv)+'_'+str(LED_VALUE)+'\n'
         #print('Sending '+avos_cmd)
         try:
     	    AvosSocket.sendall(avos_cmd)
         except:
-            print('Socket error in sendall() in avatar_driver.py, exiting')
+            print('Socket error in sendall() in openrover_driver.py, exiting')
             os._exit(1)
 
 def send_motor_cmds_cb(event):
@@ -294,12 +294,12 @@ def avos_motor_driver_main():
 
         # Subscribe to the cmd_vel topic - this takes in motor commands and saves them
         sub_cmds = rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
-        sub_override = rospy.Subscriber("/avatar/charging_override", Int32, override_cb)
+        sub_override = rospy.Subscriber("/openrover/charging_override", Int32, override_cb)
 
         # Motor commands timer - here we take the saved motor commands, smooth them every 200 msec and send to the motor
         rospy.Timer(rospy.Duration(0.1), send_motor_cmds_cb)
         
-        rospy.Timer(rospy.Duration(0.1), listen_to_avatar_cb)
+        rospy.Timer(rospy.Duration(0.1), listen_to_openrover_cb)
 
         # spin() simply keeps python from exiting until this node is stopped
         rospy.spin()
@@ -329,18 +329,18 @@ if __name__ == '__main__':
     rospy.init_node('avos_motor_driver_node', anonymous=True)
     r = rospy.Rate(20) # 10hz
     # publish the commands actually sent to the motors - in lieu of actual motor encoders
-    enc_pub = rospy.Publisher('/avatar/enc', Vector3Stamped, queue_size=10)
-    odom_pub = rospy.Publisher('/avatar/odom', Odometry, queue_size=10)
-    odom_diff_pub = rospy.Publisher('/avatar/odom_diff', Vector3Stamped, queue_size=10)
-    status_pub = rospy.Publisher('/avatar/status', String, queue_size=1, latch=True)
-    battery1_pub = rospy.Publisher('/avatar/battery/cell1/soc', Int32, queue_size=1, latch=True)
-    battery2_pub = rospy.Publisher('/avatar/battery/cell2/soc', Int32, queue_size=1, latch=True)
-    motor1temp_pub = rospy.Publisher('/avatar/motor1/temp', Int32, queue_size=1, latch=True)
-    motor2temp_pub = rospy.Publisher('/avatar/motor2/temp', Int32, queue_size=1, latch=True)
+    enc_pub = rospy.Publisher('/openrover/enc', Vector3Stamped, queue_size=10)
+    odom_pub = rospy.Publisher('/openrover/odom', Odometry, queue_size=10)
+    odom_diff_pub = rospy.Publisher('/openrover/odom_diff', Vector3Stamped, queue_size=10)
+    status_pub = rospy.Publisher('/openrover/status', String, queue_size=1, latch=True)
+    battery1_pub = rospy.Publisher('/openrover/battery/cell1/soc', Int32, queue_size=1, latch=True)
+    battery2_pub = rospy.Publisher('/openrover/battery/cell2/soc', Int32, queue_size=1, latch=True)
+    motor1temp_pub = rospy.Publisher('/openrover/motor1/temp', Int32, queue_size=1, latch=True)
+    motor2temp_pub = rospy.Publisher('/openrover/motor2/temp', Int32, queue_size=1, latch=True)
     processortemp_pub = rospy.Publisher('/processor/temp', Int32, queue_size=1, latch=True)
-    led_sub = rospy.Subscriber("/avatar/led", Int32, led_cb, queue_size=10)
+    led_sub = rospy.Subscriber("/openrover/led", Int32, led_cb, queue_size=10)
 
-    charging_pub = rospy.Publisher('/avatar/charging', Int32, queue_size=1, latch=True)
+    charging_pub = rospy.Publisher('/openrover/charging', Int32, queue_size=1, latch=True)
     cmd=Int32()
     cmd.data=-1
     # on startup, assume we're charging
